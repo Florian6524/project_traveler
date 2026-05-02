@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -11,6 +12,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final usernameController = TextEditingController();
 
   bool isLogin = true;
   bool isLoading = false;
@@ -27,10 +29,23 @@ class _LoginPageState extends State<LoginPage> {
           password: passwordController.text.trim(),
         );
       } else {
-        await auth.createUserWithEmailAndPassword(
+        UserCredential userCredential = await auth.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
+
+        final user = userCredential.user;
+
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(user.uid)
+              .set({
+            "email": emailController.text.trim(),
+            "username": usernameController.text.trim(),
+            "points": 0,
+          });
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message = "Something went wrong";
@@ -58,6 +73,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    usernameController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -65,39 +88,44 @@ class _LoginPageState extends State<LoginPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(labelText: "Email"),
-            ),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: InputDecoration(labelText: "Password"),
-            ),
-            SizedBox(height: 20),
-
-            isLoading
-                ? CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: handleAuth,
-              child: Text(isLogin ? "Login" : "Sign Up"),
-            ),
-
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  isLogin = !isLogin;
-                });
-              },
-              child: Text(
-                isLogin
-                    ? "Don't have an account? Sign Up"
-                    : "Already have an account? Login",
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              if (!isLogin)
+                TextField(
+                  controller: usernameController,
+                  decoration: const InputDecoration(labelText: "Username"),
+                ),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: "Email"),
               ),
-            ),
-          ],
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: "Password"),
+              ),
+              const SizedBox(height: 20),
+              isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                onPressed: handleAuth,
+                child: Text(isLogin ? "Login" : "Sign Up"),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    isLogin = !isLogin;
+                  });
+                },
+                child: Text(
+                  isLogin
+                      ? "Don't have an account? Sign Up"
+                      : "Already have an account? Login",
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
