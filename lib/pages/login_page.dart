@@ -32,7 +32,6 @@ class _LoginPageState extends State<LoginPage> {
           password: passwordController.text.trim(),
         );
       }
-      // No navigation needed — AuthWrapper handles it
     } on FirebaseAuthException catch (e) {
       String message = "Something went wrong";
 

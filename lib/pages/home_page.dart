@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'profile_page.dart';
 import 'shop_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -12,74 +13,34 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+class Place {
+  final String name;
+  final LatLng position;
+
+  Place(this.name, this.position);
+}
+
 class _HomePageState extends State<HomePage> {
   GoogleMapController? mapController;
 
-  LatLng _currentPosition = LatLng(44.4268, 26.1025);
+  LatLng _currentPosition = const LatLng(44.4268, 26.1025);
 
   StreamSubscription<Position>? positionStream;
 
-  Set<Marker> _markers = {};
+  final List<Place> places = [
+    Place("Museum", const LatLng(44.435, 26.102)),
+    Place("Cafe", const LatLng(44.427, 26.100)),
+    Place("Park", const LatLng(44.430, 26.105)),
+    Place("test", const LatLng(44.44462351124719, 26.05668737490598)),
+    Place("Maria si Ion", const LatLng(44.44498453879395, 26.055664206259504))
+  ];
 
-  // 🔥 ICONS
-  BitmapDescriptor? museumIcon;
-  BitmapDescriptor? cafeIcon;
-  BitmapDescriptor? parkIcon;
+  Place? nearbyPlace;
 
   @override
   void initState() {
     super.initState();
-    _loadIcons();   // 👈 IMPORTANT
     _initLocation();
-  }
-
-  // 📍 LOAD ICONS FIRST
-  Future<void> _loadIcons() async {
-    museumIcon = await BitmapDescriptor.asset(
-      ImageConfiguration(size: Size(64, 64)),
-      'assets/icons/museum.png',
-    );
-
-    cafeIcon = await BitmapDescriptor.asset(
-      ImageConfiguration(size: Size(64, 64)),
-      'assets/icons/cafe.png',
-    );
-
-    parkIcon = await BitmapDescriptor.asset(
-      ImageConfiguration(size: Size(64, 64)),
-      'assets/icons/park.png',
-    );
-
-    // ✅ AFTER icons load → create markers
-    _addMarkers();
-  }
-
-  // 📍 CREATE MARKERS (AFTER ICONS!)
-  void _addMarkers() {
-    final markers = {
-      Marker(
-        markerId: MarkerId("museum1"),
-        position: LatLng(44.435, 26.102),
-        icon: museumIcon ?? BitmapDescriptor.defaultMarker,
-        infoWindow: InfoWindow(title: "Museum"),
-      ),
-      Marker(
-        markerId: MarkerId("cafe1"),
-        position: LatLng(44.44491801613029, 26.055680157720083),
-        icon: cafeIcon ?? BitmapDescriptor.defaultMarker,
-        infoWindow: InfoWindow(title: "Cafe"),
-      ),
-      Marker(
-        markerId: MarkerId("park1"),
-        position: LatLng(44.430, 26.105), // ✅ NEW LOCATION
-        icon: parkIcon ?? BitmapDescriptor.defaultMarker,
-        infoWindow: InfoWindow(title: "Park"),
-      ),
-    };
-
-    setState(() {
-      _markers = markers;
-    });
   }
 
   Future<void> _initLocation() async {
@@ -94,7 +55,7 @@ class _HomePageState extends State<HomePage> {
     _updatePosition(position);
 
     positionStream = Geolocator.getPositionStream(
-      locationSettings: LocationSettings(
+      locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
       ),
@@ -110,9 +71,35 @@ class _HomePageState extends State<HomePage> {
       _currentPosition = newPos;
     });
 
+    _checkNearbyPlace(position);
+
     mapController?.animateCamera(
       CameraUpdate.newLatLng(newPos),
     );
+  }
+
+  void _checkNearbyPlace(Position position) {
+    const double maxDistance = 50; // increase maybe, for testing and stuff
+
+    for (var place in places) {
+      double distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        place.position.latitude,
+        place.position.longitude,
+      );
+
+      if (distance <= maxDistance) {
+        setState(() {
+          nearbyPlace = place;
+        });
+        return;
+      }
+    }
+
+    setState(() {
+      nearbyPlace = null;
+    });
   }
 
   @override
@@ -124,54 +111,42 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 🔝 TOP BAR
-            Container(
-              height: 70,
-              width: double.infinity,
-              alignment: Alignment.center,
-              color: Colors.white,
-              child: Text(
-                "Traveler",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+      appBar: AppBar(
+        title: const Text("Traveler"),
 
-            // 🗺️ MAP
-            Expanded(
-              child: Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: _currentPosition,
-                      zoom: 16,
-                    ),
-                    onMapCreated: (controller) {
-                      mapController = controller;
-                    },
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    markers: _markers,
-                  ),
-
-                  Positioned(
-                    bottom: 20,
-                    right: 20,
-                    child: FloatingActionButton(
-                      onPressed: () {},
-                      child: Icon(Icons.qr_code),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+          },
         ),
+
+        actions: [
+          if (nearbyPlace != null)
+            IconButton(
+              icon: const Icon(Icons.camera_alt),
+              onPressed: () {
+                print("Scan at ${nearbyPlace!.name}");
+              },
+            ),
+        ],
+      ),
+
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: _currentPosition,
+          zoom: 16,
+        ),
+        onMapCreated: (controller) {
+          mapController = controller;
+        },
+
+        myLocationEnabled: true,
+
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: false,
+        compassEnabled: false,
+        mapToolbarEnabled: false,
       ),
 
       bottomNavigationBar: BottomNavigationBar(
