@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'home_page.dart';
+import 'admin_page.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
@@ -12,72 +15,100 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final usernameController = TextEditingController();
+  final nameController = TextEditingController();
 
   bool isLogin = true;
   bool isLoading = false;
 
-  final auth = FirebaseAuth.instance;
-
-  Future<void> handleAuth() async {
+  Future<void> _login() async {
     setState(() => isLoading = true);
 
     try {
-      if (isLogin) {
-        await auth.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final uid = credential.user!.uid;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      final role = doc.data()?['role'];
+
+      if (role == 'admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminPage()),
         );
       } else {
-        UserCredential userCredential = await auth.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
         );
-
-        final user = userCredential.user;
-
-        if (user != null) {
-          await FirebaseFirestore.instance
-              .collection("users")
-              .doc(user.uid)
-              .set({
-            "email": emailController.text.trim(),
-            "username": usernameController.text.trim(),
-            "points": 0,
-          });
-        }
       }
     } on FirebaseAuthException catch (e) {
-      String message = "Something went wrong";
-
-      if (e.code == 'user-not-found') {
-        message = "No user found with this email";
-      } else if (e.code == 'wrong-password') {
-        message = "Wrong password";
-      } else if (e.code == 'email-already-in-use') {
-        message = "Email already in use";
-      } else if (e.code == 'weak-password') {
-        message = "Password should be at least 6 characters";
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      _showError(e.message ?? "Login failed");
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      _showError("Unexpected error");
     }
 
     setState(() => isLoading = false);
   }
 
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    usernameController.dispose();
-    super.dispose();
+  Future<void> _signup() async {
+    // ✅ BASIC VALIDATION FIRST
+    if (passwordController.text.length < 6) {
+      _showError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (nameController.text.isEmpty) {
+      _showError("Please enter a name");
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final user = credential.user!;
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'points': 0,
+        'role': 'user',
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? "Signup failed");
+    } catch (e) {
+      _showError("Unexpected error");
+    }
+
+    setState(() => isLoading = false);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -87,45 +118,48 @@ class _LoginPageState extends State<LoginPage> {
         title: Text(isLogin ? "Login" : "Sign Up"),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              if (!isLogin)
-                TextField(
-                  controller: usernameController,
-                  decoration: const InputDecoration(labelText: "Username"),
-                ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            if (!isLogin)
               TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: "Email"),
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Name"),
               ),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "Password"),
+
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: "Email"),
+            ),
+
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: "Password"),
+            ),
+
+            const SizedBox(height: 20),
+
+            isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+              onPressed: isLogin ? _login : _signup,
+              child: Text(isLogin ? "Login" : "Sign Up"),
+            ),
+
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  isLogin = !isLogin;
+                });
+              },
+              child: Text(
+                isLogin
+                    ? "Don't have an account? Sign Up"
+                    : "Already have an account? Login",
               ),
-              const SizedBox(height: 20),
-              isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                onPressed: handleAuth,
-                child: Text(isLogin ? "Login" : "Sign Up"),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    isLogin = !isLogin;
-                  });
-                },
-                child: Text(
-                  isLogin
-                      ? "Don't have an account? Sign Up"
-                      : "Already have an account? Login",
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
