@@ -24,7 +24,10 @@ class _AdminPageState extends State<AdminPage> {
     await FirebaseFirestore.instance.collection('users').get();
 
     final loaded = snapshot.docs.map((doc) {
-      return doc.data();
+      return {
+        'id': doc.id,
+        ...doc.data(),
+      };
     }).toList();
 
     setState(() {
@@ -39,6 +42,66 @@ class _AdminPageState extends State<AdminPage> {
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
           (route) => false,
+    );
+  }
+
+  void _editPoints(Map<String, dynamic> user) {
+    final controller =
+    TextEditingController(text: user['points'].toString());
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("Edit points for ${user['name']}"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: "New points",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final input = controller.text.trim();
+
+              final newPoints = int.tryParse(input);
+
+              if (newPoints == null) {
+                _showError("Enter a valid integer");
+                return;
+              }
+
+              if (newPoints < 0) {
+                _showError("Points cannot be negative");
+                return;
+              }
+
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user['id'])
+                  .update({
+                'points': newPoints,
+              });
+
+              Navigator.pop(context);
+
+              _loadUsers();
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
     );
   }
 
@@ -70,6 +133,10 @@ class _AdminPageState extends State<AdminPage> {
                   Text("Role: ${user['role']}"),
                 ],
               ),
+
+              onTap: () => _editPoints(user),
+
+              trailing: const Icon(Icons.edit),
             ),
           );
         },

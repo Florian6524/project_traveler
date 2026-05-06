@@ -34,7 +34,7 @@ class ProfilePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Username: ${data['username']}",
+                  "Username: ${data['name']}",
                   style: const TextStyle(fontSize: 20),
                 ),
 
