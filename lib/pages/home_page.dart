@@ -104,7 +104,7 @@ class _HomePageState extends State<HomePage> {
         loc.lng,
       );
 
-      if (distance < 50) {
+      if (distance < 100) {
         near = true;
         break;
       }

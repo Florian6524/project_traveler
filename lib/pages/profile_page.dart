@@ -2,13 +2,68 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  State<ProfilePage> createState() => _ProfilePageState();
+}
 
+class _ProfilePageState extends State<ProfilePage> {
+  final user = FirebaseAuth.instance.currentUser;
+
+  void _changeName(String currentName) {
+    final controller =
+    TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Change Username"),
+        content: TextField(
+          controller: controller,
+          decoration:
+          const InputDecoration(labelText: "New username"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+
+              if (newName.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                    Text("Name must be at least 3 characters"),
+                  ),
+                );
+                return;
+              }
+
+              await FirebaseFirestore.instance
+                  .collection("users")
+                  .doc(user!.uid)
+                  .update({
+                'name': newName,
+              });
+
+              Navigator.pop(context);
+
+              setState(() {});
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Profile")),
 
@@ -18,12 +73,16 @@ class ProfilePage extends StatelessWidget {
             .doc(user!.uid)
             .get(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text("No user data found"));
+          if (!snapshot.hasData ||
+              !snapshot.data!.exists) {
+            return const Center(
+                child: Text("No user data found"));
           }
 
           final data = snapshot.data!;
@@ -31,11 +90,25 @@ class ProfilePage extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Username: ${data['name']}",
-                  style: const TextStyle(fontSize: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Username: ${data['name']}",
+                        style:
+                        const TextStyle(fontSize: 20),
+                      ),
+                    ),
+
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () =>
+                          _changeName(data['name']),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 10),
@@ -61,7 +134,8 @@ class ProfilePage extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius:
+                    BorderRadius.circular(12),
                   ),
                   child: const Text(
                     "Explore places and scan QR codes to earn points!",

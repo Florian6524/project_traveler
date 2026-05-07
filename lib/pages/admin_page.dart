@@ -67,17 +67,11 @@ class _AdminPageState extends State<AdminPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final input = controller.text.trim();
+              final newPoints =
+              int.tryParse(controller.text.trim());
 
-              final newPoints = int.tryParse(input);
-
-              if (newPoints == null) {
-                _showError("Enter a valid integer");
-                return;
-              }
-
-              if (newPoints < 0) {
-                _showError("Points cannot be negative");
+              if (newPoints == null || newPoints < 0) {
+                _showError("Points must be a positive integer");
                 return;
               }
 
@@ -89,10 +83,107 @@ class _AdminPageState extends State<AdminPage> {
               });
 
               Navigator.pop(context);
-
               _loadUsers();
             },
             child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addLocation() {
+    final nameController = TextEditingController();
+    final latController = TextEditingController();
+    final lngController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Add Location"),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: nameController,
+                decoration:
+                const InputDecoration(labelText: "Location Name"),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: latController,
+                keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+                decoration:
+                const InputDecoration(labelText: "Latitude"),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: lngController,
+                keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+                decoration:
+                const InputDecoration(labelText: "Longitude"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+
+              final lat =
+              double.tryParse(latController.text.trim());
+
+              final lng =
+              double.tryParse(lngController.text.trim());
+
+              if (name.isEmpty || name.length < 3) {
+                _showError("Name too short");
+                return;
+              }
+
+              if (lat == null || lng == null) {
+                _showError("Invalid coordinates");
+                return;
+              }
+
+              if (lat < -90 || lat > 90) {
+                _showError("Latitude must be between -90 and 90");
+                return;
+              }
+
+              if (lng < -180 || lng > 180) {
+                _showError("Longitude must be between -180 and 180");
+                return;
+              }
+
+              await FirebaseFirestore.instance
+                  .collection('locations')
+                  .add({
+                'name': name,
+                'lat': lat,
+                'long': lng,
+              });
+
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Location added"),
+                ),
+              );
+            },
+            child: const Text("Add"),
           ),
         ],
       ),
@@ -110,10 +201,18 @@ class _AdminPageState extends State<AdminPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Admin Panel"),
+
         leading: IconButton(
           icon: const Icon(Icons.logout),
           onPressed: _logout,
         ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_location),
+            onPressed: _addLocation,
+          ),
+        ],
       ),
 
       body: ListView.builder(
@@ -125,8 +224,10 @@ class _AdminPageState extends State<AdminPage> {
             margin: const EdgeInsets.all(10),
             child: ListTile(
               title: Text(user['name'] ?? 'No Name'),
+
               subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
                   Text("Email: ${user['email']}"),
                   Text("Points: ${user['points']}"),
@@ -134,9 +235,9 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
 
-              onTap: () => _editPoints(user),
-
               trailing: const Icon(Icons.edit),
+
+              onTap: () => _editPoints(user),
             ),
           );
         },
