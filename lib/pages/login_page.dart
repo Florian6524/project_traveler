@@ -60,7 +60,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _signup() async {
-    // ✅ BASIC VALIDATION FIRST
     if (passwordController.text.length < 6) {
       _showError("Password must be at least 6 characters");
       return;

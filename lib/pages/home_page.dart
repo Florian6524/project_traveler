@@ -9,6 +9,7 @@ import 'profile_page.dart';
 import 'shop_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
+import 'location_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -21,8 +22,26 @@ class LocationPoint {
   final double lat;
   final double lng;
   final String name;
+  final String description;
+  final String qrCodeId;
 
-  LocationPoint({required this.lat, required this.lng, required this.name});
+  LocationPoint({
+    required this.lat,
+    required this.lng,
+    required this.name,
+    required this.description,
+    required this.qrCodeId,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'lat': lat,
+      'long': lng,
+      'name': name,
+      'description': description,
+      'qrCodeId': qrCodeId,
+    };
+  }
 }
 
 class _HomePageState extends State<HomePage> {
@@ -34,6 +53,8 @@ class _HomePageState extends State<HomePage> {
 
   List<LocationPoint> locations = [];
   bool isNearLocation = false;
+
+  Map<String, dynamic>? nearbyLocation;
 
   @override
   void initState() {
@@ -53,6 +74,8 @@ class _HomePageState extends State<HomePage> {
         lat: data['lat'],
         lng: data['long'],
         name: data['name'],
+        description: data['description'] ?? '',
+        qrCodeId: data['qrCodeId'] ?? '',
       );
     }).toList();
 
@@ -96,6 +119,8 @@ class _HomePageState extends State<HomePage> {
   void _checkNearby() {
     bool near = false;
 
+    Map<String, dynamic>? foundLocation;
+
     for (var loc in locations) {
       double distance = Geolocator.distanceBetween(
         _currentPosition.latitude,
@@ -106,12 +131,16 @@ class _HomePageState extends State<HomePage> {
 
       if (distance < 100) {
         near = true;
+
+        foundLocation = loc.toMap();
+
         break;
       }
     }
 
     setState(() {
       isNearLocation = near;
+      nearbyLocation = foundLocation;
     });
   }
 
@@ -144,8 +173,13 @@ class _HomePageState extends State<HomePage> {
             IconButton(
               icon: const Icon(Icons.camera_alt),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Scan QR here (future feature)")),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LocationPage(
+                      locationData: nearbyLocation!,
+                    ),
+                  ),
                 );
               },
             ),
