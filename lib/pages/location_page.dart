@@ -137,30 +137,53 @@ class _LocationPageState extends State<LocationPage> {
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.place, color: Colors.white, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            Text(
-              description == null ||
-                  description.toString().isEmpty
-                  ? "No description available"
-                  : description,
-              style: const TextStyle(
-                fontSize: 18,
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  description == null || description.toString().isEmpty
+                      ? "No description available"
+                      : description,
+                  style: const TextStyle(fontSize: 16, height: 1.4),
+                ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            const Spacer(),
 
             SizedBox(
               width: double.infinity,
@@ -170,9 +193,12 @@ class _LocationPageState extends State<LocationPage> {
                 icon: const Icon(Icons.qr_code_scanner),
                 label: const Text(
                   "Scan QR Code",
+                  style: TextStyle(fontSize: 16),
                 ),
               ),
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),

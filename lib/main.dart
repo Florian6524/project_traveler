@@ -6,10 +6,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
 import 'pages/admin_page.dart';
+import 'theme/app_theme.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await NotificationService.init();
 
   runApp(const MyApp());
 }
@@ -22,6 +25,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Tourist App',
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
       home: const AuthWrapper(),
     );
   }
