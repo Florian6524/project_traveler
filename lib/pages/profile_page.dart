@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'friends_page.dart';
 import 'requests_page.dart';
+import 'chats_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -66,23 +67,20 @@ class _ProfilePageState extends State<ProfilePage> {
                 return;
               }
 
-              final currentUserDoc =
-              await FirebaseFirestore.instance
+              final currentUserDoc = await FirebaseFirestore.instance
                   .collection("users")
                   .doc(user!.uid)
                   .get();
 
               List friends =
-              (currentUserDoc.data()?['friends'] ?? [])
-              as List;
+                  (currentUserDoc.data()?['friends'] ?? []) as List;
 
               if (friends.contains(friendUid)) {
                 _showMessage("You are already friends");
                 return;
               }
 
-              final existing = await FirebaseFirestore
-                  .instance
+              final existing = await FirebaseFirestore.instance
                   .collection('friend_requests')
                   .where('fromUid', isEqualTo: user!.uid)
                   .where('toUid', isEqualTo: friendUid)
@@ -93,17 +91,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 return;
               }
 
-              final reverse = await FirebaseFirestore
-                  .instance
+              final reverse = await FirebaseFirestore.instance
                   .collection('friend_requests')
                   .where('fromUid', isEqualTo: friendUid)
                   .where('toUid', isEqualTo: user!.uid)
                   .get();
 
               if (reverse.docs.isNotEmpty) {
-                _showMessage(
-                  "This user already sent you a request",
-                );
+                _showMessage("This user already sent you a request");
                 return;
               }
 
@@ -128,8 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _changeName(String currentName) {
-    final controller =
-    TextEditingController(text: currentName);
+    final controller = TextEditingController(text: currentName);
 
     showDialog(
       context: context,
@@ -137,8 +131,7 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Text("Change Username"),
         content: TextField(
           controller: controller,
-          decoration:
-          const InputDecoration(labelText: "New username"),
+          decoration: const InputDecoration(labelText: "New username"),
         ),
         actions: [
           TextButton(
@@ -150,17 +143,14 @@ class _ProfilePageState extends State<ProfilePage> {
               final newName = controller.text.trim();
 
               if (newName.length < 3) {
-                _showMessage(
-                    "Name must be at least 3 characters");
+                _showMessage("Name must be at least 3 characters");
                 return;
               }
 
               await FirebaseFirestore.instance
                   .collection("users")
                   .doc(user!.uid)
-                  .update({
-                'name': newName,
-              });
+                  .update({'name': newName});
 
               Navigator.pop(context);
 
@@ -179,110 +169,158 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _actionTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        trailing: trailing ?? const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text("Profile")),
-
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
             .collection("users")
             .doc(user!.uid)
             .get(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData ||
-              !snapshot.data!.exists) {
-            return const Center(
-              child: Text("No user data found"),
-            );
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text("No user data found"));
           }
 
           final data = snapshot.data!;
+          final name = data['name'] ?? '?';
 
-          return Padding(
-            padding: const EdgeInsets.all(20),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
               children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: theme.colorScheme.primary,
+                  child: Text(
+                    name.toString().isNotEmpty
+                        ? name.toString()[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      fontSize: 36,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        "Username: ${data['name']}",
-                        style: const TextStyle(
-                          fontSize: 20,
-                        ),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () =>
-                          _changeName(data['name']),
+                      icon: const Icon(Icons.edit, size: 18),
+                      onPressed: () => _changeName(name),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 10),
-
                 Text(
-                  "Email: ${data['email']}",
-                  style: const TextStyle(fontSize: 16),
+                  data['email'] ?? '',
+                  style: const TextStyle(color: Colors.grey),
                 ),
-
-                const SizedBox(height: 20),
-
-                Text(
-                  "Points: ${data['points']}",
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.secondary,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star,
+                          color: Colors.white, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        "${data['points'] ?? 0} points",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 30),
-
-                ElevatedButton.icon(
-                  onPressed: _showAddFriendDialog,
-                  icon: const Icon(Icons.person_add),
-                  label: const Text("Add Friend"),
+                const SizedBox(height: 24),
+                _actionTile(
+                  icon: Icons.person_add,
+                  label: "Add Friend",
+                  onTap: _showAddFriendDialog,
                 ),
-
-                const SizedBox(height: 10),
-
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.mail),
-                  label: const Text("Requests"),
-                  onPressed: () {
+                _actionTile(
+                  icon: Icons.mail_outline,
+                  label: "Friend Requests",
+                  onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                        const RequestsPage(),
+                        builder: (_) => const RequestsPage(),
                       ),
                     );
                   },
                 ),
-
-                const SizedBox(height: 10),
-
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.people),
-                  label: const Text("Friends"),
-                  onPressed: () {
+                _actionTile(
+                  icon: Icons.people_outline,
+                  label: "Friends",
+                  onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                        const FriendsPage(),
+                        builder: (_) => const FriendsPage(),
+                      ),
+                    );
+                  },
+                ),
+                _actionTile(
+                  icon: Icons.chat_bubble_outline,
+                  label: "Messages",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChatsListPage(),
                       ),
                     );
                   },

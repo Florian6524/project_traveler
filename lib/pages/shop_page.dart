@@ -26,21 +26,25 @@ class Offer {
 class _ShopPageState extends State<ShopPage> {
   List<Offer> offers = [];
   int userPoints = 0;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadOffers();
-    _loadUserPoints();
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    await Future.wait([_loadOffers(), _loadUserPoints()]);
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _loadOffers() async {
     final snapshot =
-    await FirebaseFirestore.instance.collection('offers').get();
+        await FirebaseFirestore.instance.collection('offers').get();
 
     final loaded = snapshot.docs.map((doc) {
       final data = doc.data();
-
       return Offer(
         shopName: data['shopName'],
         item: data['item'],
@@ -55,12 +59,10 @@ class _ShopPageState extends State<ShopPage> {
 
   Future<void> _loadUserPoints() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
-
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
         .get();
-
     setState(() {
       userPoints = doc.data()?['points'] ?? 0;
     });
@@ -69,9 +71,9 @@ class _ShopPageState extends State<ShopPage> {
   String _generateCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rand = Random();
-
     return String.fromCharCodes(
-      Iterable.generate(8, (_) => chars.codeUnitAt(rand.nextInt(chars.length))),
+      Iterable.generate(
+          8, (_) => chars.codeUnitAt(rand.nextInt(chars.length))),
     );
   }
 
@@ -101,59 +103,59 @@ class _ShopPageState extends State<ShopPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          height: 300,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+              Icon(
+                Icons.celebration,
+                size: 56,
+                color: Theme.of(context).colorScheme.secondary,
               ),
-
+              const SizedBox(height: 12),
               const Text(
-                "Your Reward Code 🎉",
+                "Your Reward Code",
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 15,
-                  horizontal: 25,
-                ),
+                    vertical: 16, horizontal: 28),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   code,
                   style: const TextStyle(
                     fontSize: 28,
-                    letterSpacing: 2,
+                    letterSpacing: 4,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-
+              const SizedBox(height: 12),
               const Text(
                 "Valid for 10 minutes",
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
+                style: TextStyle(color: Colors.grey),
               ),
-
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Done"),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Done"),
+                ),
               ),
             ],
           ),
@@ -164,44 +166,131 @@ class _ShopPageState extends State<ShopPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Shop"),
         actions: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Center(
-              child: Text(
-                "Points: $userPoints",
-                style: const TextStyle(fontSize: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      "$userPoints",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : offers.isEmpty
+              ? const Center(child: Text("No offers available"))
+              : ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: offers.map((offer) {
+                    final canBuy = userPoints >= offer.points;
 
-      body: ListView(
-        children: offers.map((offer) {
-          final canBuy = userPoints >= offer.points;
-
-          return Card(
-            margin: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            color: canBuy ? Colors.white : Colors.grey[300],
-            child: ListTile(
-              title: Text(
-                offer.shopName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(offer.item),
-              trailing: Text("${offer.points} pts"),
-              onTap: canBuy ? () => _buyOffer(offer) : null,
-            ),
-          );
-        }).toList(),
-      ),
+                    return Card(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: canBuy ? () => _buyOffer(offer) : null,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: canBuy
+                                        ? [
+                                            theme.colorScheme.primary,
+                                            theme.colorScheme.secondary,
+                                          ]
+                                        : [
+                                            Colors.grey.shade400,
+                                            Colors.grey.shade300,
+                                          ],
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.circular(14),
+                                ),
+                                child: Icon(
+                                  canBuy
+                                      ? Icons.local_offer
+                                      : Icons.lock_outline,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      offer.shopName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      offer.item,
+                                      style: const TextStyle(
+                                          color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                children: [
+                                  Text(
+                                    "${offer.points}",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: canBuy
+                                          ? theme.colorScheme.primary
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                  const Text(
+                                    "pts",
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
     );
   }
 }
