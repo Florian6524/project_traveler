@@ -7,6 +7,6 @@ Project for MEC
 Popescu Emanoil-Florian-Sinisha
 Voicea David-Alexandru
 
-## Github repo link:
+## GitHub repo link:
 
 https://github.com/Florian6524/project_traveler
