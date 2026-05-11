@@ -4,8 +4,8 @@ Project for MEC
 
 ## Student names:
 
-Popescu Emanoil-Florian-Sinisha
-Voicea David-Alexandru
+- Popescu Emanoil-Florian-Sinisha
+- Voicea David-Alexandru
 
 ## GitHub repo link:
 
